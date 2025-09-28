@@ -337,7 +337,7 @@ export default function Auth() {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
+                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all text-black"
                   placeholder="Enter your email"
                   required
                 />
@@ -355,7 +355,7 @@ export default function Auth() {
                   type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
+                  className="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all text-black"
                   placeholder="Enter your password"
                   required
                   minLength={6}
@@ -490,7 +490,7 @@ export default function Auth() {
                   maxLength={4}
                   value={mpin}
                   onChange={(e) => setMpin(e.target.value.replace(/\D/g, ''))}
-                  className="w-full px-4 py-3 text-center text-2xl font-bold border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none"
+                  className="w-full px-4 py-3 text-center text-2xl font-bold border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-black"
                   placeholder="••••"
                 />
               </div>
@@ -504,7 +504,7 @@ export default function Auth() {
                   maxLength={4}
                   value={confirmMpin}
                   onChange={(e) => setConfirmMpin(e.target.value.replace(/\D/g, ''))}
-                  className="w-full px-4 py-3 text-center text-2xl font-bold border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none"
+                  className="w-full px-4 py-3 text-center text-2xl font-bold border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-black"
                   placeholder="••••"
                 />
               </div>
@@ -599,7 +599,7 @@ export default function Auth() {
                   maxLength={4}
                   value={mpin}
                   onChange={(e) => setMpin(e.target.value.replace(/\D/g, ''))}
-                  className="w-full px-4 py-4 text-center text-3xl font-bold border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none tracking-widest"
+                  className="w-full px-4 py-4 text-center text-3xl font-bold border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none tracking-widest text-black"
                   placeholder="••••"
                   autoFocus
                 />
