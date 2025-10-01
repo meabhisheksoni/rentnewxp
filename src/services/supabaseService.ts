@@ -90,9 +90,13 @@ export class SupabaseService {
 
   static async getAllRenters(): Promise<Renter[]> {
     try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) throw new Error('User not authenticated')
+
       const { data, error } = await supabase
         .from('renters')
         .select('*')
+        .eq('user_id', user.id)
         .order('created_at', { ascending: false })
 
       if (error) throw error
@@ -105,16 +109,45 @@ export class SupabaseService {
 
   static async getActiveRenters(): Promise<Renter[]> {
     try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) throw new Error('User not authenticated')
+
       const { data, error } = await supabase
         .from('renters')
         .select('*')
+        .eq('user_id', user.id)
         .eq('is_active', true)
+        .order('created_at', { ascending: false })
+
+      if (error) throw error
+
+      console.log('getActiveRenters - User ID:', user.id)
+      console.log('getActiveRenters - Retrieved renters:', data?.length || 0)
+      console.log('getActiveRenters - Renter details:', data?.map(r => ({ id: r.id, name: r.name, monthly_rent: r.monthly_rent })))
+
+      return data || []
+    } catch (error) {
+      console.error('Error fetching active renters:', error)
+      return []
+    }
+  }
+
+  static async getArchivedRenters(): Promise<Renter[]> {
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) throw new Error('User not authenticated')
+
+      const { data, error } = await supabase
+        .from('renters')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('is_active', false)
         .order('created_at', { ascending: false })
 
       if (error) throw error
       return data || []
     } catch (error) {
-      console.error('Error fetching active renters:', error)
+      console.error('Error fetching archived renters:', error)
       return []
     }
   }
@@ -132,6 +165,24 @@ export class SupabaseService {
     } catch (error) {
       console.error('Error fetching renter:', error)
       return null
+    }
+  }
+
+  static async setRenterActive(renterId: string, isActive: boolean): Promise<void> {
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) throw new Error('User not authenticated')
+
+      const { error } = await supabase
+        .from('renters')
+        .update({ is_active: isActive })
+        .eq('id', renterId)
+        .eq('user_id', user.id)
+
+      if (error) throw error
+    } catch (error) {
+      console.error(`Error setting renter active status to ${isActive}:`, error)
+      throw new Error('Failed to update renter status.')
     }
   }
 
@@ -170,12 +221,25 @@ export class SupabaseService {
 
   static async getPaymentsForMonth(month: Date): Promise<Payment[]> {
     try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) throw new Error('User not authenticated')
+
       const startOfMonth = new Date(month.getFullYear(), month.getMonth(), 1)
       const endOfMonth = new Date(month.getFullYear(), month.getMonth() + 1, 0)
+
+      // First get renter IDs for this user
+      const { data: renterIds } = await supabase
+        .from('renters')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('is_active', true)
+
+      if (!renterIds || renterIds.length === 0) return []
 
       const { data, error } = await supabase
         .from('payments')
         .select('*')
+        .in('renter_id', renterIds.map(r => r.id))
         .gte('due_date', startOfMonth.getTime())
         .lte('due_date', endOfMonth.getTime())
 
@@ -190,14 +254,23 @@ export class SupabaseService {
   // Dashboard calculations
   static async getTotalMonthlyRent(): Promise<number> {
     try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) throw new Error('User not authenticated')
+
       const { data, error } = await supabase
         .from('renters')
         .select('monthly_rent')
+        .eq('user_id', user.id)
         .eq('is_active', true)
 
       if (error) throw error
-      
+
+      console.log('getTotalMonthlyRent - User ID:', user.id)
+      console.log('getTotalMonthlyRent - Active renters data:', data)
+      console.log('getTotalMonthlyRent - Monthly rents:', (data || []).map(r => r.monthly_rent))
+
       const total = (data || []).reduce((sum, renter) => sum + renter.monthly_rent, 0)
+      console.log('getTotalMonthlyRent - Calculated total:', total)
       return total
     } catch (error) {
       console.error('Error calculating total monthly rent:', error)
@@ -207,14 +280,27 @@ export class SupabaseService {
 
   static async getOutstandingAmount(forDate: Date): Promise<number> {
     try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) throw new Error('User not authenticated')
+
+      // First get renter IDs for this user
+      const { data: renterIds } = await supabase
+        .from('renters')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('is_active', true)
+
+      if (!renterIds || renterIds.length === 0) return 0
+
       const { data, error } = await supabase
         .from('payments')
         .select('amount')
+        .in('renter_id', renterIds.map(r => r.id))
         .in('status', ['pending', 'overdue'])
         .lte('due_date', forDate.getTime())
 
       if (error) throw error
-      
+
       const total = (data || []).reduce((sum, payment) => sum + payment.amount, 0)
       return total
     } catch (error) {
@@ -226,10 +312,24 @@ export class SupabaseService {
   // Monthly Bill operations
   static async getMonthlyBill(renterId: number, month: number, year: number): Promise<MonthlyBill | null> {
     try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) throw new Error('User not authenticated')
+
+      // First verify the renter belongs to this user
+      const { data: renter } = await supabase
+        .from('renters')
+        .select('id')
+        .eq('id', renterId)
+        .eq('user_id', user.id)
+        .single()
+
+      if (!renter) throw new Error('Renter not found or access denied')
+
       const { data, error } = await supabase
         .from('monthly_bills')
         .select('*')
         .eq('renter_id', renterId)
+        .eq('user_id', user.id)
         .eq('month', month)
         .eq('year', year)
         .single()
@@ -271,14 +371,16 @@ export class SupabaseService {
 
       const { data, error } = await supabase
         .from('monthly_bills')
-        .upsert(billWithUser, { 
+        .upsert(billWithUser, {
           onConflict: 'renter_id,month,year',
-          ignoreDuplicates: false 
+          ignoreDuplicates: false
         })
         .select()
         .single()
 
       if (error) throw error
+
+      console.log('Saved monthly bill with ID:', data.id)
       return data.id
     } catch (error) {
       console.error('Error saving monthly bill:', error)
@@ -288,6 +390,9 @@ export class SupabaseService {
 
   static async getAdditionalExpenses(monthlyBillId: string): Promise<AdditionalExpense[]> {
     try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) throw new Error('User not authenticated')
+
       const { data, error } = await supabase
         .from('additional_expenses')
         .select('*')
@@ -318,8 +423,25 @@ export class SupabaseService {
     }
   }
 
+  static async updateAdditionalExpense(expenseId: string, expense: Omit<AdditionalExpense, 'id' | 'created_at'>): Promise<void> {
+    try {
+      const { error } = await supabase
+        .from('additional_expenses')
+        .update(expense)
+        .eq('id', expenseId)
+
+      if (error) throw error
+    } catch (error) {
+      console.error('Error updating additional expense:', error)
+      throw new Error(`Failed to update additional expense: ${error}`)
+    }
+  }
+
   static async getBillPayments(monthlyBillId: string): Promise<BillPayment[]> {
     try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) throw new Error('User not authenticated')
+
       const { data, error } = await supabase
         .from('bill_payments')
         .select('*')
@@ -350,19 +472,36 @@ export class SupabaseService {
     }
   }
 
+  static async updateBillPayment(paymentId: string, payment: Omit<BillPayment, 'id' | 'created_at'>): Promise<void> {
+    try {
+      const { error } = await supabase
+        .from('bill_payments')
+        .update(payment)
+        .eq('id', paymentId)
+
+      if (error) throw error
+    } catch (error) {
+      console.error('Error updating bill payment:', error)
+      throw new Error(`Failed to update bill payment: ${error}`)
+    }
+  }
+
   // Test connection
   static async testConnection(): Promise<void> {
     try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) throw new Error('User not authenticated')
+
       const { data, error } = await supabase
         .from('renters')
         .select('*')
+        .eq('user_id', user.id)
         .limit(1)
 
       if (error) throw error
       console.log('✅ Connection successful!')
     } catch (error) {
       console.error('❌ Connection failed:', error)
-      throw new Error(`Connection failed: ${error}`)
     }
   }
 

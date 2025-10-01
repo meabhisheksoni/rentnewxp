@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect } from 'react'
 import { format } from 'date-fns'
 import { ArrowLeft, ChevronLeft, ChevronRight, Copy, Calculator, Send, Zap, Droplets, Settings, Home, Plus, X } from 'lucide-react'
 import { Renter } from '@/types'
@@ -13,7 +13,7 @@ interface RenterProfileProps {
 }
 
 interface Payment {
-  id?: string
+  id: string
   amount: number
   date: Date
   type: 'cash' | 'online'
@@ -21,7 +21,7 @@ interface Payment {
 }
 
 interface AdditionalExpense {
-  id?: string
+  id: string
   description: string
   amount: number
   date: Date
@@ -66,19 +66,10 @@ export default function RenterProfile({ renter, onClose }: RenterProfileProps) {
   const [showAddExpense, setShowAddExpense] = useState(false)
   const [showAddPayment, setShowAddPayment] = useState(false)
 
-  // Load bill data when component mounts and when month changes
+  // Load bill data when month changes
   useEffect(() => {
-    if (renter.id) {
-      loadMonthlyBillData()
-    }
+    loadMonthlyBillData()
   }, [selectedMonth, renter.id])
-
-  // Separate effect to load data when component mounts
-  useEffect(() => {
-    if (renter.id) {
-      loadMonthlyBillData()
-    }
-  }, [])
 
   const loadMonthlyBillData = async () => {
     try {
@@ -91,14 +82,10 @@ export default function RenterProfile({ renter, onClose }: RenterProfileProps) {
         return
       }
 
-      console.log('Loading monthly bill data for:', { renterId: renter.id, month, year })
-
       // Try to load existing bill for this month
       const existingBill = await SupabaseService.getMonthlyBill(renter.id, month, year)
-      console.log('Existing bill found:', existingBill ? 'Yes' : 'No', existingBill?.id)
-
+      
       if (existingBill) {
-        console.log('Loading existing bill data...')
         // Load existing data
         setRentAmount(existingBill.rent_amount)
         setElectricityEnabled(existingBill.electricity_enabled)
@@ -120,22 +107,18 @@ export default function RenterProfile({ renter, onClose }: RenterProfileProps) {
         setWaterAmount(existingBill.water_amount)
         setMaintenanceEnabled(existingBill.maintenance_enabled)
         setMaintenanceAmount(existingBill.maintenance_amount)
-
-        console.log('Loading expenses and payments for bill ID:', existingBill.id)
+        
         // Load additional expenses and payments
         const expenses = await SupabaseService.getAdditionalExpenses(existingBill.id!)
         const billPayments = await SupabaseService.getBillPayments(existingBill.id!)
-
-        console.log('Loaded expenses:', expenses.length)
-        console.log('Loaded payments:', billPayments.length)
-
+        
         setAdditionalExpenses(expenses.map(exp => ({
           id: exp.id!,
           description: exp.description,
           amount: exp.amount,
           date: new Date(exp.date)
         })))
-
+        
         setPayments(billPayments.map(payment => ({
           id: payment.id!,
           amount: payment.amount,
@@ -144,10 +127,9 @@ export default function RenterProfile({ renter, onClose }: RenterProfileProps) {
           note: payment.note
         })))
       } else {
-        console.log('No existing bill found, setting up default values')
         // Create fresh bill with carry-forward readings
         const previousBill = await SupabaseService.getPreviousMonthBill(renter.id, month, year)
-
+        
         setRentAmount(renter.monthly_rent)
         setElectricityEnabled(false)
         setElectricityData({
@@ -176,31 +158,22 @@ export default function RenterProfile({ renter, onClose }: RenterProfileProps) {
     }
   }
 
-  // Calculations - Memoized for performance
-  const electricityAmount = useMemo(() => electricityEnabled
-    ? (electricityData.finalReading - electricityData.initialReading) * electricityData.multiplier
-    : 0, [electricityEnabled, electricityData.finalReading, electricityData.initialReading, electricityData.multiplier])
+  // Calculations
+  const electricityAmount = electricityEnabled 
+    ? (electricityData.finalReading - electricityData.initialReading) * electricityData.multiplier 
+    : 0
 
-  const motorAmount = useMemo(() => motorEnabled
-    ? ((motorData.finalReading - motorData.initialReading) / motorData.numberOfPeople) * motorData.multiplier
-    : 0, [motorEnabled, motorData.finalReading, motorData.initialReading, motorData.numberOfPeople, motorData.multiplier])
+  const motorAmount = motorEnabled 
+    ? ((motorData.finalReading - motorData.initialReading) / motorData.numberOfPeople) * motorData.multiplier 
+    : 0
 
-  const additionalTotal = useMemo(() =>
-    additionalExpenses.reduce((sum, exp) => sum + exp.amount, 0),
-    [additionalExpenses])
-
-  const totalPayments = useMemo(() =>
-    payments.reduce((sum, payment) => sum + payment.amount, 0),
-    [payments])
-
-  const totalAmount = useMemo(() =>
-    rentAmount + electricityAmount + motorAmount +
-    (waterEnabled ? waterAmount : 0) + (maintenanceEnabled ? maintenanceAmount : 0) + additionalTotal,
-    [rentAmount, electricityAmount, motorAmount, waterEnabled, waterAmount, maintenanceEnabled, maintenanceAmount, additionalTotal])
-
-  const pendingAmount = useMemo(() =>
-    totalAmount - totalPayments,
-    [totalAmount, totalPayments])
+  const additionalTotal = additionalExpenses.reduce((sum, exp) => sum + exp.amount, 0)
+  const totalPayments = payments.reduce((sum, payment) => sum + payment.amount, 0)
+  
+  const totalAmount = rentAmount + electricityAmount + motorAmount + 
+    (waterEnabled ? waterAmount : 0) + (maintenanceEnabled ? maintenanceAmount : 0) + additionalTotal
+  
+  const pendingAmount = totalAmount - totalPayments
 
   const previousMonth = () => {
     setSelectedMonth(new Date(selectedMonth.getFullYear(), selectedMonth.getMonth() - 1))
@@ -293,48 +266,31 @@ export default function RenterProfile({ renter, onClose }: RenterProfileProps) {
         pending_amount: pendingAmount || 0
       }
       
-      // Save monthly bill first
+      // Save monthly bill
       const billId = await SupabaseService.saveMonthlyBill(monthlyBill)
-      console.log('Monthly bill saved with ID:', billId)
-
-      // Save additional expenses - Update existing expenses and save new ones
+      
+      // Save additional expenses
       for (const expense of additionalExpenses) {
-        const expenseData = {
-          monthly_bill_id: billId,
-          description: expense.description,
-          amount: expense.amount,
-          date: expense.date.toISOString().split('T')[0]
-        }
-
-        if (expense.id && expense.id.length > 10) { // Check if it's a real database ID (UUID format)
-          // Update existing expense
-          await SupabaseService.updateAdditionalExpense(expense.id, expenseData)
-          console.log('Updated expense with ID:', expense.id)
-        } else {
-          // Save new expense
-          const savedExpenseId = await SupabaseService.saveAdditionalExpense(expenseData)
-          console.log('Saved expense with ID:', savedExpenseId)
+        if (!expense.id) { // Only save new expenses
+          await SupabaseService.saveAdditionalExpense({
+            monthly_bill_id: billId,
+            description: expense.description,
+            amount: expense.amount,
+            date: expense.date.toISOString().split('T')[0]
+          })
         }
       }
-
-      // Save payments - Update existing payments and save new ones
+      
+      // Save payments
       for (const payment of payments) {
-        const paymentData = {
-          monthly_bill_id: billId,
-          amount: payment.amount,
-          payment_date: payment.date.toISOString().split('T')[0],
-          payment_type: payment.type,
-          note: payment.note
-        }
-
-        if (payment.id && payment.id.length > 10) { // Check if it's a real database ID (UUID format)
-          // Update existing payment
-          await SupabaseService.updateBillPayment(payment.id, paymentData)
-          console.log('Updated payment with ID:', payment.id)
-        } else {
-          // Save new payment
-          const savedPaymentId = await SupabaseService.saveBillPayment(paymentData)
-          console.log('Saved new payment with ID:', savedPaymentId)
+        if (!payment.id) { // Only save new payments
+          await SupabaseService.saveBillPayment({
+            monthly_bill_id: billId,
+            amount: payment.amount,
+            payment_date: payment.date.toISOString().split('T')[0],
+            payment_type: payment.type,
+            note: payment.note
+          })
         }
       }
       
@@ -455,8 +411,8 @@ export default function RenterProfile({ renter, onClose }: RenterProfileProps) {
                 <div>+ Rs {Math.floor(maintenanceAmount).toLocaleString('en-IN')} (Maintenance)</div>
               )}
               
-              {additionalExpenses.map((expense, index) => (
-                <div key={expense.id || `expense-summary-${index}`}>+ Rs {Math.floor(expense.amount).toLocaleString('en-IN')} ({expense.description})</div>
+              {additionalExpenses.map(expense => (
+                <div key={expense.id}>+ Rs {Math.floor(expense.amount).toLocaleString('en-IN')} ({expense.description})</div>
               ))}
               
               <div className="font-bold text-yellow-300 mt-1">Total Rs {Math.floor(totalAmount).toLocaleString('en-IN')} pending</div>
@@ -612,8 +568,8 @@ export default function RenterProfile({ renter, onClose }: RenterProfileProps) {
                 <Plus className="h-4 w-4 text-blue-600" />
               </button>
             </div>
-            {additionalExpenses.map((expense, index) => (
-              <div key={expense.id || `expense-${index}`} className="flex justify-between items-center py-2 border-b border-gray-100 last:border-b-0">
+            {additionalExpenses.map((expense) => (
+              <div key={expense.id} className="flex justify-between items-center py-2 border-b border-gray-100 last:border-b-0">
                 <span className="text-sm text-gray-700">{expense.description}</span>
                 <span className="text-sm font-semibold text-gray-900">{formatIndianCurrency(expense.amount)}</span>
               </div>
@@ -631,8 +587,8 @@ export default function RenterProfile({ renter, onClose }: RenterProfileProps) {
                 <Plus className="h-4 w-4 text-green-600" />
               </button>
             </div>
-            {payments.map((payment, index) => (
-              <div key={payment.id || `payment-${index}`} className="flex justify-between items-center py-3 border-b border-gray-100 last:border-b-0">
+            {payments.map((payment) => (
+              <div key={payment.id} className="flex justify-between items-center py-3 border-b border-gray-100 last:border-b-0">
                 <div>
                   <p className="text-sm font-medium text-gray-900">{formatIndianCurrency(payment.amount)}</p>
                   <p className="text-xs text-gray-500">{format(payment.date, 'dd MMM yyyy')} • {payment.type}</p>
@@ -647,12 +603,13 @@ export default function RenterProfile({ renter, onClose }: RenterProfileProps) {
           <div className="h-6"></div>
         </div>
       </div>
+
       {/* Add Expense Modal */}
       {showAddExpense && (
         <AddExpenseModal
           onClose={() => setShowAddExpense(false)}
           onAdd={(expense) => {
-            setAdditionalExpenses([...additionalExpenses, expense]) // Don't assign temporary ID
+            setAdditionalExpenses([...additionalExpenses, { ...expense, id: Date.now().toString() }])
             setShowAddExpense(false)
           }}
         />
@@ -663,7 +620,7 @@ export default function RenterProfile({ renter, onClose }: RenterProfileProps) {
         <AddPaymentModal
           onClose={() => setShowAddPayment(false)}
           onAdd={(payment) => {
-            setPayments([...payments, payment]) // Don't assign temporary ID
+            setPayments([...payments, { ...payment, id: Date.now().toString() }])
             setShowAddPayment(false)
           }}
         />
@@ -865,7 +822,7 @@ function AddExpenseModal({ onClose, onAdd }: AddExpenseModalProps) {
             <X className="h-5 w-5" />
           </button>
         </div>
-
+        
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
@@ -873,7 +830,7 @@ function AddExpenseModal({ onClose, onAdd }: AddExpenseModalProps) {
               type="text"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-gray-900"
+              className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none"
               placeholder="e.g., aunti ko diye"
               required
             />
@@ -887,7 +844,7 @@ function AddExpenseModal({ onClose, onAdd }: AddExpenseModalProps) {
                 type="text"
                 value={formatInputValue(amount)}
                 onChange={(e) => handleIndianNumberInput(e.target.value, setAmount)}
-                className="w-full pl-8 pr-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-gray-900"
+                className="w-full pl-8 pr-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none"
                 placeholder="Enter amount"
                 required
               />
@@ -957,7 +914,7 @@ function AddPaymentModal({ onClose, onAdd }: AddPaymentModalProps) {
                 type="text"
                 value={formatInputValue(amount)}
                 onChange={(e) => handleIndianNumberInput(e.target.value, setAmount)}
-                className="w-full pl-8 pr-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-gray-900"
+                className="w-full pl-8 pr-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none"
                 placeholder="Enter amount received"
                 required
               />
@@ -996,7 +953,7 @@ function AddPaymentModal({ onClose, onAdd }: AddPaymentModalProps) {
               type="text"
               value={note}
               onChange={(e) => setNote(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-gray-900"
+              className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none"
               placeholder="e.g., Partial payment"
             />
           </div>

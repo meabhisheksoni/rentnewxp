@@ -28,7 +28,7 @@ export default function Auth() {
   const [autoLoginEnabled, setAutoLoginEnabled] = useState(false)
   // const [deviceTrusted, setDeviceTrusted] = useState(false)
 
-  const { signIn, signUp } = useAuth()
+  const { signIn, signUp, signOut } = useAuth()
 
   // Check for saved credentials and device capabilities on component mount
   useEffect(() => {
@@ -296,6 +296,28 @@ export default function Auth() {
     setError('')
   }
 
+  const handleSignOut = async () => {
+    try {
+      console.log('Auth: Starting signout process...')
+      setLoading(true)
+      await signOut()
+      console.log('Auth: Signout completed, clearing local data...')
+
+      // Clear all local storage
+      localStorage.clear()
+
+      console.log('Auth: Local data cleared, redirecting to login...')
+      // Force redirect to ensure user sees login screen
+      window.location.href = '/'
+
+    } catch (error) {
+      console.error('Auth: Sign out error:', error)
+      alert('Error signing out. Please try again.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
       <div className="max-w-md w-full">
@@ -337,7 +359,7 @@ export default function Auth() {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all text-black"
+                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all text-gray-900"
                   placeholder="Enter your email"
                   required
                 />
@@ -355,7 +377,7 @@ export default function Auth() {
                   type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all text-black"
+                  className="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all text-gray-900"
                   placeholder="Enter your password"
                   required
                   minLength={6}
@@ -490,7 +512,7 @@ export default function Auth() {
                   maxLength={4}
                   value={mpin}
                   onChange={(e) => setMpin(e.target.value.replace(/\D/g, ''))}
-                  className="w-full px-4 py-3 text-center text-2xl font-bold border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-black"
+                  className="w-full px-4 py-3 text-center text-2xl font-bold border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-gray-900"
                   placeholder="••••"
                 />
               </div>
@@ -504,7 +526,7 @@ export default function Auth() {
                   maxLength={4}
                   value={confirmMpin}
                   onChange={(e) => setConfirmMpin(e.target.value.replace(/\D/g, ''))}
-                  className="w-full px-4 py-3 text-center text-2xl font-bold border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-black"
+                  className="w-full px-4 py-3 text-center text-2xl font-bold border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-gray-900"
                   placeholder="••••"
                 />
               </div>
@@ -599,7 +621,7 @@ export default function Auth() {
                   maxLength={4}
                   value={mpin}
                   onChange={(e) => setMpin(e.target.value.replace(/\D/g, ''))}
-                  className="w-full px-4 py-4 text-center text-3xl font-bold border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none tracking-widest text-black"
+                  className="w-full px-4 py-4 text-center text-3xl font-bold border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none tracking-widest text-gray-900"
                   placeholder="••••"
                   autoFocus
                 />
@@ -640,10 +662,11 @@ export default function Auth() {
                   Use Password
                 </button>
                 <button
-                  onClick={clearRememberedData}
-                  className="flex-1 px-4 py-2 text-red-600 bg-red-50 rounded-xl hover:bg-red-100 text-sm font-medium"
+                  onClick={handleSignOut}
+                  disabled={loading}
+                  className="flex-1 px-4 py-2 text-red-600 bg-red-50 rounded-xl hover:bg-red-100 text-sm font-medium disabled:opacity-50"
                 >
-                  Clear Data
+                  Sign Out
                 </button>
               </div>
             </div>

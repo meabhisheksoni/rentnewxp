@@ -86,7 +86,7 @@ export default function AddRenterModal({ onClose, onRenterAdded }: AddRenterModa
                 value={formData.name}
                 onChange={handleChange}
                 placeholder="Enter renter's full name"
-                className="w-full pl-12 pr-4 py-4 border-2 border-gray-200 rounded-2xl focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all font-medium"
+                className="w-full pl-12 pr-4 py-4 border-2 border-gray-200 rounded-2xl focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all font-medium text-gray-900"
                 required
               />
             </div>
@@ -107,7 +107,7 @@ export default function AddRenterModal({ onClose, onRenterAdded }: AddRenterModa
                   setFormData(prev => ({ ...prev, monthlyRent: value }))
                 )}
                 placeholder="Enter monthly rent amount"
-                className="w-full pl-12 pr-4 py-4 border-2 border-gray-200 rounded-2xl focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all font-medium"
+                className="w-full pl-12 pr-4 py-4 border-2 border-gray-200 rounded-2xl focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all font-medium text-gray-900"
                 required
               />
             </div>
@@ -125,7 +125,7 @@ export default function AddRenterModal({ onClose, onRenterAdded }: AddRenterModa
                 name="moveInDate"
                 value={formData.moveInDate}
                 onChange={handleChange}
-                className="w-full pl-12 pr-4 py-4 border-2 border-gray-200 rounded-2xl focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all font-medium"
+                className="w-full pl-12 pr-4 py-4 border-2 border-gray-200 rounded-2xl focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all font-medium text-gray-900"
                 required
               />
             </div>
