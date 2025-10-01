@@ -17,10 +17,10 @@ export default function Dashboard() {
   const [totalRenters, setTotalRenters] = useState(0)
   const [totalMonthlyRent, setTotalMonthlyRent] = useState(0)
   const [pendingAmount, setPendingAmount] = useState(0)
-  const [isLoading, setIsLoading] = useState(true)
   const [showAddModal, setShowAddModal] = useState(false)
-  const [showSidebar, setShowSidebar] = useState(false)
   const [archivedRenters, setArchivedRenters] = useState<Renter[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [showSidebar, setShowSidebar] = useState(false)
   const [viewMode, setViewMode] = useState<'active' | 'archived' | 'all'>('active')
 
   useEffect(() => {
@@ -110,18 +110,37 @@ export default function Dashboard() {
     }
   }
 
+  const handleUnarchiveRenter = async (renterId: string) => {
+    try {
+      console.log('Unarchiving renter:', renterId)
+
+      await SupabaseService.setRenterActive(renterId, true)
+      await loadDashboardData() // Reload all data to reflect the change
+
+      alert('Renter unarchived successfully!')
+    } catch (error) {
+      console.error('Error unarchiving renter:', error)
+      alert('Failed to unarchive renter. Please try again.')
+    }
+  }
+
   const handleDeleteRenter = async (renterId: string) => {
     if (window.confirm('Are you sure you want to delete this renter? This action cannot be undone.')) {
       try {
-        console.log('Deleting renter:', renterId)
-        // For now, just remove from local state
-        // In a real app, you would call an API to delete the renter
-        setRenters(prevRenters => prevRenters.filter(renter => renter.id?.toString() !== renterId))
+        console.log('Dashboard: Starting deletion for renter ID:', renterId)
+
+        // Delete from database using SupabaseService
+        await SupabaseService.deleteRenter(renterId)
+        console.log('Dashboard: Successfully deleted renter from database')
+
+        // Reload all data to reflect the change
+        await loadDashboardData()
+        console.log('Dashboard: Reloaded dashboard data after deletion')
 
         alert('Renter deleted successfully!')
       } catch (error) {
-        console.error('Error deleting renter:', error)
-        alert('Failed to delete renter. Please try again.')
+        console.error('Dashboard: Error deleting renter:', error)
+        alert(`Failed to delete renter: ${error instanceof Error ? error.message : String(error)}`)
       }
     }
   }
@@ -204,8 +223,6 @@ export default function Dashboard() {
               >
                 <LogOut className="h-5 w-5 text-red-600" />
               </button>
-
-              <Menu className="h-6 w-6 text-gray-600 sm:hidden" />
             </div>
           </div>
         </div>
@@ -387,6 +404,7 @@ export default function Dashboard() {
                 key={renter.id}
                 renter={renter}
                 onArchive={handleArchiveRenter}
+                onUnarchive={handleUnarchiveRenter}
                 onDelete={handleDeleteRenter}
               />
             ))}

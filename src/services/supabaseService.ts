@@ -173,10 +173,16 @@ export class SupabaseService {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) throw new Error('User not authenticated')
 
+      // Convert string ID to number for database query
+      const numericId = parseInt(renterId, 10)
+      if (isNaN(numericId)) {
+        throw new Error('Invalid renter ID format')
+      }
+
       const { error } = await supabase
         .from('renters')
         .update({ is_active: isActive })
-        .eq('id', renterId)
+        .eq('id', numericId)
         .eq('user_id', user.id)
 
       if (error) throw error
@@ -562,6 +568,39 @@ export class SupabaseService {
     } catch (error) {
       console.error('Error adding sample data:', error)
       throw new Error(`Failed to add sample data: ${error}`)
+    }
+  }
+
+  // Delete renter - updated to handle ID type conversion properly
+  static async deleteRenter(renterId: string): Promise<void> {
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) throw new Error('User not authenticated')
+
+      // Convert string ID to number for database query
+      const numericId = parseInt(renterId, 10)
+      if (isNaN(numericId)) {
+        console.error('SupabaseService: Invalid renter ID format:', renterId)
+        throw new Error('Invalid renter ID format')
+      }
+
+      console.log('SupabaseService: Deleting renter with ID:', numericId, 'for user:', user.id)
+
+      const { error } = await supabase
+        .from('renters')
+        .delete()
+        .eq('id', numericId)
+        .eq('user_id', user.id)
+
+      if (error) {
+        console.error('SupabaseService: Database error deleting renter:', error)
+        throw error
+      }
+
+      console.log('SupabaseService: Successfully deleted renter from database')
+    } catch (error) {
+      console.error('SupabaseService: Error deleting renter:', error)
+      throw new Error(`Failed to delete renter: ${error instanceof Error ? error.message : String(error)}`)
     }
   }
 }

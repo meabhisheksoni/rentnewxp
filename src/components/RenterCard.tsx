@@ -10,10 +10,11 @@ import RenterProfile from './RenterProfile'
 interface RenterCardProps {
   renter: Renter
   onArchive?: (renterId: string) => void
+  onUnarchive?: (renterId: string) => void
   onDelete?: (renterId: string) => void
 }
 
-export default function RenterCard({ renter, onArchive, onDelete }: RenterCardProps) {
+export default function RenterCard({ renter, onArchive, onUnarchive, onDelete }: RenterCardProps) {
   const [showProfile, setShowProfile] = useState(false)
   const [showContextMenu, setShowContextMenu] = useState(false)
   const [longPressTimer, setLongPressTimer] = useState<NodeJS.Timeout | null>(null)
@@ -54,6 +55,14 @@ export default function RenterCard({ renter, onArchive, onDelete }: RenterCardPr
   const handleArchive = () => {
     if (onArchive && renter.id) {
       onArchive(renter.id.toString())
+    }
+    setShowContextMenu(false)
+  }
+
+  // Handle unarchive action
+  const handleUnarchive = () => {
+    if (onUnarchive && renter.id) {
+      onUnarchive(renter.id.toString())
     }
     setShowContextMenu(false)
   }
@@ -160,13 +169,25 @@ export default function RenterCard({ renter, onArchive, onDelete }: RenterCardPr
         {/* Context Menu for Long Press */}
         {showContextMenu && (
           <div className="absolute top-2 right-2 z-10 bg-white rounded-lg shadow-lg border border-gray-200 py-2 min-w-[120px]">
-            <button
-              onClick={handleArchive}
-              className="w-full flex items-center space-x-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-            >
-              <Archive className="h-4 w-4" />
-              <span>Archive</span>
-            </button>
+            {renter.is_active ? (
+              // Active renter - show Archive option
+              <button
+                onClick={handleArchive}
+                className="w-full flex items-center space-x-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+              >
+                <Archive className="h-4 w-4" />
+                <span>Archive</span>
+              </button>
+            ) : (
+              // Archived renter - show Unarchive option
+              <button
+                onClick={handleUnarchive}
+                className="w-full flex items-center space-x-2 px-3 py-2 text-sm text-blue-600 hover:bg-blue-50 transition-colors"
+              >
+                <Archive className="h-4 w-4" />
+                <span>Unarchive</span>
+              </button>
+            )}
             <button
               onClick={handleDelete}
               className="w-full flex items-center space-x-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
