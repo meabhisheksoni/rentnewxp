@@ -65,6 +65,9 @@ export default function RenterProfile({ renter, onClose }: RenterProfileProps) {
 
   const [showAddExpense, setShowAddExpense] = useState(false)
   const [showAddPayment, setShowAddPayment] = useState(false)
+  
+  // Toggle for bill summary visibility
+  const [showBillSummary, setShowBillSummary] = useState(true)
 
   // Load bill data when component mounts and when month changes
   useEffect(() => {
@@ -394,7 +397,20 @@ export default function RenterProfile({ renter, onClose }: RenterProfileProps) {
         {/* Compact Bill Summary */}
         <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-2xl m-4 p-4 text-white shadow-lg flex-shrink-0">
           <div className="flex justify-between items-center mb-3">
-            <h2 className="text-sm font-medium text-blue-100">Bill Summary</h2>
+            <div className="flex items-center space-x-2">
+              <h2 className="text-sm font-medium text-blue-100">Bill Summary</h2>
+              <button
+                onClick={() => setShowBillSummary(!showBillSummary)}
+                className="p-1 bg-white/20 hover:bg-white/30 rounded-lg transition-colors"
+                title={showBillSummary ? "Hide Bill Summary" : "Show Bill Summary"}
+              >
+                {showBillSummary ? (
+                  <ChevronLeft className="h-4 w-4 text-white" />
+                ) : (
+                  <ChevronRight className="h-4 w-4 text-white" />
+                )}
+              </button>
+            </div>
             <div className="flex items-center space-x-2">
               <button
                 onClick={handleCalculateAndSave}
@@ -420,7 +436,8 @@ export default function RenterProfile({ renter, onClose }: RenterProfileProps) {
             </div>
           </div>
 
-          {/* Compact Bill Text */}
+          {/* Compact Bill Text - Collapsible */}
+          {showBillSummary && (
           <div className="bg-white/10 rounded-xl p-3 mb-3 font-mono text-xs leading-relaxed">
             <div className="text-white space-y-0.5">
               <div className="font-semibold">BILL upto {format(new Date(selectedMonth.getFullYear(), selectedMonth.getMonth() + 1, 0), 'dd-MMM-yyyy')}</div>
@@ -468,7 +485,7 @@ export default function RenterProfile({ renter, onClose }: RenterProfileProps) {
               <div className="font-bold text-red-400 text-sm">Pending ;- Rs {Math.floor(pendingAmount).toLocaleString('en-IN')}&quot;</div>
             </div>
           </div>
-
+          )}
 
         </div>
 
