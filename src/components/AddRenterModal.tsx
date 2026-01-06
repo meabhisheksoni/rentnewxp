@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { X, Calendar, User, IndianRupee } from 'lucide-react'
 import { format } from 'date-fns'
-import { SupabaseService } from '@/services/supabaseService'
+import { ApiService } from '@/services/apiService'
 import { formatInputValue, handleIndianNumberInput } from '@/utils/formatters'
 
 interface AddRenterModalProps {
@@ -21,7 +21,7 @@ export default function AddRenterModal({ onClose, onRenterAdded }: AddRenterModa
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     if (!formData.name.trim() || formData.monthlyRent <= 0) {
       alert('Please fill in all required fields')
       return
@@ -29,13 +29,13 @@ export default function AddRenterModal({ onClose, onRenterAdded }: AddRenterModa
 
     setIsLoading(true)
     try {
-      await SupabaseService.insertRenter({
+      await ApiService.insertRenter({
         name: formData.name.trim(),
-        email: 'N/A',
-        phone: 'N/A',
-        property_address: 'N/A',
+        email: null,
+        phone: null,
+        property_address: null,
         monthly_rent: formData.monthlyRent,
-        move_in_date: new Date(formData.moveInDate).getTime(),
+        move_in_date: formData.moveInDate,
         is_active: true
       })
 
@@ -103,7 +103,7 @@ export default function AddRenterModal({ onClose, onRenterAdded }: AddRenterModa
                 type="text"
                 name="monthlyRent"
                 value={formatInputValue(formData.monthlyRent)}
-                onChange={(e) => handleIndianNumberInput(e.target.value, (value) => 
+                onChange={(e) => handleIndianNumberInput(e.target.value, (value) =>
                   setFormData(prev => ({ ...prev, monthlyRent: value }))
                 )}
                 placeholder="Enter monthly rent amount"

@@ -49,7 +49,7 @@ export default function RenterCard({ renter, onArchive, onUnarchive, onDelete }:
               <div className="flex items-center text-xs text-gray-500">
                 <Calendar className="h-3 w-3 mr-1 flex-shrink-0" />
                 <span className="italic">
-                  Moved in: {format(new Date(renter.move_in_date), 'MMM dd, yyyy')}
+                  Moved in: {renter.move_in_date ? format(new Date(renter.move_in_date), 'MMM dd, yyyy') : 'N/A'}
                 </span>
               </div>
             </div>
@@ -69,7 +69,7 @@ export default function RenterCard({ renter, onArchive, onUnarchive, onDelete }:
             {/* Pending Amount */}
             <StatCard
               label="PENDING"
-              value="₹ 0"
+              value={formatIndianCurrency(renter.total_pending || 0)}
               bgColor="bg-gray-50"
               textColor="text-gray-700"
               labelColor="text-gray-600"

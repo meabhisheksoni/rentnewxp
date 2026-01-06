@@ -1,13 +1,15 @@
 export interface Renter {
-  id?: number
+  id: number
+  user_id?: string
   name: string
-  email: string
-  phone: string
-  property_address: string
+  email: string | null
+  phone: string | null
+  property_address: string | null
   monthly_rent: number
-  move_in_date: number
+  move_in_date: string | null
   is_active: boolean
-  created_at?: string
+  created_at?: string | null
+  total_pending?: number
 }
 
 export interface Payment {

@@ -1,4 +1,4 @@
-import { SupabaseService } from '@/services/supabaseService'
+import { ApiService } from '@/services/apiService'
 import { performanceMonitor } from './performanceMonitor'
 
 export interface MonthData {
@@ -120,6 +120,9 @@ export class BillCache {
   /**
    * Preload adjacent months in background without blocking UI
    */
+  /**
+   * Preload adjacent months in background without blocking UI
+   */
   async preload(
     renterId: number,
     month: number,
@@ -142,6 +145,60 @@ export class BillCache {
   }
 
   /**
+   * Populate cache from bulk data
+   */
+  populateFromBulk(renterId: number, bulkData: any[]): void {
+    bulkData.forEach(({ bill, expenses, payments }) => {
+      if (bill) {
+        const billData = this.mapToMonthData(bill, expenses, payments)
+        this.set(renterId, bill.month, bill.year, billData)
+      }
+    })
+  }
+
+  private mapToMonthData(bill: any, expenses: any[], payments: any[]): MonthData {
+    return {
+      rentAmount: bill.rent_amount,
+      electricityEnabled: bill.electricity_enabled,
+      electricityData: {
+        initialReading: bill.electricity_initial_reading || 0,
+        finalReading: bill.electricity_final_reading || 0,
+        multiplier: bill.electricity_multiplier || 9,
+        readingDate: bill.electricity_reading_date
+          ? new Date(bill.electricity_reading_date)
+          : new Date()
+      },
+      motorEnabled: bill.motor_enabled,
+      motorData: {
+        initialReading: bill.motor_initial_reading || 0,
+        finalReading: bill.motor_final_reading || 0,
+        multiplier: bill.motor_multiplier || 9,
+        numberOfPeople: bill.motor_number_of_people || 2,
+        readingDate: bill.motor_reading_date
+          ? new Date(bill.motor_reading_date)
+          : new Date()
+      },
+      waterEnabled: bill.water_enabled,
+      waterAmount: bill.water_amount,
+      maintenanceEnabled: bill.maintenance_enabled,
+      maintenanceAmount: bill.maintenance_amount,
+      additionalExpenses: expenses.map(exp => ({
+        id: exp.id!,
+        description: exp.description,
+        amount: exp.amount,
+        date: new Date(exp.date)
+      })),
+      payments: payments.map(payment => ({
+        id: payment.id!,
+        amount: payment.amount,
+        date: new Date(payment.payment_date),
+        type: payment.payment_type,
+        note: payment.note
+      }))
+    }
+  }
+
+  /**
    * Load month data from database if not already cached
    */
   private async loadIfNotCached(
@@ -157,73 +214,27 @@ export class BillCache {
 
     try {
       // Try to load existing bill for this month
-      const existingBill = await SupabaseService.getMonthlyBill(renterId, month, year)
+      const { bill: existingBill, expenses, payments: billPayments, previous_readings } = await ApiService.getBillWithDetails(renterId, month, year)
 
       let billData: MonthData
 
       if (existingBill) {
-        // Load additional expenses and payments in parallel
-        const [expenses, billPayments] = await Promise.all([
-          SupabaseService.getAdditionalExpenses(existingBill.id!),
-          SupabaseService.getBillPayments(existingBill.id!)
-        ])
-
-        billData = {
-          rentAmount: existingBill.rent_amount,
-          electricityEnabled: existingBill.electricity_enabled,
-          electricityData: {
-            initialReading: existingBill.electricity_initial_reading || 0,
-            finalReading: existingBill.electricity_final_reading || 0,
-            multiplier: existingBill.electricity_multiplier || 9,
-            readingDate: existingBill.electricity_reading_date
-              ? new Date(existingBill.electricity_reading_date)
-              : new Date()
-          },
-          motorEnabled: existingBill.motor_enabled,
-          motorData: {
-            initialReading: existingBill.motor_initial_reading || 0,
-            finalReading: existingBill.motor_final_reading || 0,
-            multiplier: existingBill.motor_multiplier || 9,
-            numberOfPeople: existingBill.motor_number_of_people || 2,
-            readingDate: existingBill.motor_reading_date
-              ? new Date(existingBill.motor_reading_date)
-              : new Date()
-          },
-          waterEnabled: existingBill.water_enabled,
-          waterAmount: existingBill.water_amount,
-          maintenanceEnabled: existingBill.maintenance_enabled,
-          maintenanceAmount: existingBill.maintenance_amount,
-          additionalExpenses: expenses.map(exp => ({
-            id: exp.id!,
-            description: exp.description,
-            amount: exp.amount,
-            date: new Date(exp.date)
-          })),
-          payments: billPayments.map(payment => ({
-            id: payment.id!,
-            amount: payment.amount,
-            date: new Date(payment.payment_date),
-            type: payment.payment_type,
-            note: payment.note
-          }))
-        }
+        billData = this.mapToMonthData(existingBill, expenses, billPayments)
       } else {
         // Create fresh bill with carry-forward readings
-        const previousBill = await SupabaseService.getPreviousMonthBill(renterId, month, year)
-
         billData = {
           rentAmount: monthlyRent,
           electricityEnabled: false,
           electricityData: {
-            initialReading: previousBill?.electricity_final_reading || 0,
-            finalReading: previousBill?.electricity_final_reading || 0,
+            initialReading: previous_readings.electricity_final,
+            finalReading: previous_readings.electricity_final,
             multiplier: 9,
             readingDate: new Date()
           },
           motorEnabled: false,
           motorData: {
-            initialReading: previousBill?.motor_final_reading || 0,
-            finalReading: previousBill?.motor_final_reading || 0,
+            initialReading: previous_readings.motor_final,
+            finalReading: previous_readings.motor_final,
             multiplier: 9,
             numberOfPeople: 2,
             readingDate: new Date()
@@ -245,3 +256,6 @@ export class BillCache {
     }
   }
 }
+
+// Export singleton instance
+export const billCache = new BillCache()

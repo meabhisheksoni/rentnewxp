@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Inter, Poppins } from "next/font/google";
 import "./globals.css";
-import { AuthProvider } from '@/contexts/AuthContext';
+import { Providers } from '@/components/Providers';
 import PerformanceOverlay from '@/components/PerformanceOverlay';
 
 const inter = Inter({
@@ -31,9 +31,9 @@ export default function RootLayout({
       <body
         className={`${inter.variable} ${poppins.variable} font-inter antialiased bg-gray-50`}
       >
-        <AuthProvider>
+        <Providers>
           {children}
-        </AuthProvider>
+        </Providers>
         <PerformanceOverlay />
       </body>
     </html>

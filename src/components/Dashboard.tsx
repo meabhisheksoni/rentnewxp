@@ -3,12 +3,13 @@
 import { useState, useEffect, useCallback } from 'react'
 import { format } from 'date-fns'
 import { Calendar, Home, Users, IndianRupee, Receipt, Plus, Menu, LogOut, User, Archive } from 'lucide-react'
-import { SupabaseService } from '@/services/supabaseService'
+import { ApiService } from '@/services/apiService'
 import { Renter } from '@/types'
 import { useAuth } from '@/contexts/AuthContext'
 import { formatIndianCurrency } from '@/utils/formatters'
 import AddRenterModal from './AddRenterModal'
 import RenterCard from './RenterCard'
+import { billCache } from '@/utils/billCache'
 
 export default function Dashboard() {
   const { user, signOut } = useAuth()
@@ -29,7 +30,7 @@ export default function Dashboard() {
     setLoadError(null)
     try {
       // Use single getDashboardSummary call instead of multiple queries
-      const summary = await SupabaseService.getDashboardSummary(testDate)
+      const summary = await ApiService.getDashboardSummary()
 
       console.log('Loaded dashboard summary:', summary)
 
@@ -41,6 +42,17 @@ export default function Dashboard() {
       setPendingAmount(summary.metrics.pending_amount)
 
       console.log('Set metrics from server - renters:', summary.metrics.total_renters, 'total rent:', summary.metrics.total_monthly_rent)
+      console.log('Set metrics from server - renters:', summary.metrics.total_renters, 'total rent:', summary.metrics.total_monthly_rent)
+
+      // Background preload of all bill data
+      summary.active_renters.forEach(async (renter) => {
+        try {
+          const bills = await ApiService.getAllBills(renter.id)
+          billCache.populateFromBulk(renter.id, bills)
+        } catch (err) {
+          console.error(`Failed to preload data for renter ${renter.id}`, err)
+        }
+      })
     } catch (error) {
       console.error('Error loading dashboard data:', error)
       setLoadError(error instanceof Error ? error.message : 'Failed to load dashboard data')
@@ -62,9 +74,9 @@ export default function Dashboard() {
     try {
       console.log('Dashboard: Archiving renter with ID:', renterId)
 
-      await SupabaseService.setRenterActive(renterId, false)
+      await ApiService.setRenterActive(renterId, false)
       console.log('Dashboard: Successfully archived renter')
-      
+
       await loadDashboardData() // Reload all data to reflect the change
       console.log('Dashboard: Reloaded data after archiving')
 
@@ -79,9 +91,9 @@ export default function Dashboard() {
     try {
       console.log('Dashboard: Unarchiving renter with ID:', renterId)
 
-      await SupabaseService.setRenterActive(renterId, true)
+      await ApiService.setRenterActive(renterId, true)
       console.log('Dashboard: Successfully unarchived renter')
-      
+
       await loadDashboardData() // Reload all data to reflect the change
       console.log('Dashboard: Reloaded data after unarchiving')
 
@@ -98,7 +110,7 @@ export default function Dashboard() {
         console.log('Dashboard: Starting deletion for renter ID:', renterId)
 
         // Delete from database using SupabaseService
-        await SupabaseService.deleteRenter(renterId)
+        await ApiService.deleteRenter(renterId)
         console.log('Dashboard: Successfully deleted renter from database')
 
         // Reload all data to reflect the change
@@ -152,13 +164,13 @@ export default function Dashboard() {
             </div>
           </div>
         </header>
-        
+
         <div className="px-4 sm:px-6 lg:px-8 py-6 max-w-7xl mx-auto">
           <div className="mb-6">
             <div className="h-8 w-48 bg-gray-200 rounded animate-pulse mb-2"></div>
             <div className="h-4 w-64 bg-gray-200 rounded animate-pulse"></div>
           </div>
-          
+
           {/* Skeleton for metrics */}
           <div className="grid grid-cols-3 gap-3 mb-8">
             {[1, 2, 3].map((i) => (
@@ -169,7 +181,7 @@ export default function Dashboard() {
               </div>
             ))}
           </div>
-          
+
           {/* Skeleton for renters */}
           <div className="space-y-4">
             {[1, 2, 3].map((i) => (
@@ -206,7 +218,7 @@ export default function Dashboard() {
             </div>
           </div>
         </header>
-        
+
         <div className="px-4 sm:px-6 lg:px-8 py-6 max-w-7xl mx-auto">
           <div className="bg-white rounded-2xl border border-red-200 p-8 sm:p-12 text-center shadow-lg">
             <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
@@ -317,9 +329,8 @@ export default function Dashboard() {
                     setViewMode('active')
                     setShowSidebar(false)
                   }}
-                  className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-colors ${
-                    viewMode === 'active' ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-50'
-                  }`}
+                  className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-colors ${viewMode === 'active' ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-50'
+                    }`}
                 >
                   <Users className="h-5 w-5" />
                   <span className="font-medium">Active Renters</span>
@@ -330,9 +341,8 @@ export default function Dashboard() {
                     setViewMode('archived')
                     setShowSidebar(false)
                   }}
-                  className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-colors ${
-                    viewMode === 'archived' ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-50'
-                  }`}
+                  className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-colors ${viewMode === 'archived' ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-50'
+                    }`}
                 >
                   <Archive className="h-5 w-5" />
                   <span className="font-medium">Archived Renters</span>
@@ -343,9 +353,8 @@ export default function Dashboard() {
                     setViewMode('all')
                     setShowSidebar(false)
                   }}
-                  className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-colors ${
-                    viewMode === 'all' ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-50'
-                  }`}
+                  className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-colors ${viewMode === 'all' ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-50'
+                    }`}
                 >
                   <User className="h-5 w-5" />
                   <span className="font-medium">All Profiles</span>
@@ -380,27 +389,27 @@ export default function Dashboard() {
         {/* Compact Horizontal Metrics Tiles */}
         {viewMode !== 'archived' && (
           <div className="grid grid-cols-3 gap-3 mb-8">
-          <MetricTile
-            title="Total Renters"
-            value={totalRenters.toString()}
-            icon={<Users className="h-4 w-4 text-blue-600" />}
-            bgColor="bg-blue-50"
-            textColor="text-blue-700"
-          />
-          <MetricTile
-            title="Monthly Rent"
-            value={formatIndianCurrency(totalMonthlyRent)}
-            icon={<IndianRupee className="h-4 w-4 text-green-600" />}
-            bgColor="bg-green-50"
-            textColor="text-green-700"
-          />
-          <MetricTile
-            title="Pending Amount"
-            value={formatIndianCurrency(pendingAmount)}
-            icon={<Receipt className="h-4 w-4 text-orange-600" />}
-            bgColor="bg-orange-50"
-            textColor="text-orange-700"
-          />
+            <MetricTile
+              title="Total Renters"
+              value={totalRenters.toString()}
+              icon={<Users className="h-4 w-4 text-blue-600" />}
+              bgColor="bg-blue-50"
+              textColor="text-blue-700"
+            />
+            <MetricTile
+              title="Monthly Rent"
+              value={formatIndianCurrency(totalMonthlyRent)}
+              icon={<IndianRupee className="h-4 w-4 text-green-600" />}
+              bgColor="bg-green-50"
+              textColor="text-green-700"
+            />
+            <MetricTile
+              title="Pending Amount"
+              value={formatIndianCurrency(pendingAmount)}
+              icon={<Receipt className="h-4 w-4 text-orange-600" />}
+              bgColor="bg-orange-50"
+              textColor="text-orange-700"
+            />
           </div>
         )}
 
